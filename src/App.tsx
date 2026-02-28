@@ -150,7 +150,7 @@ export default function App() {
                       <span><strong>{t.anio}</strong> - {t.comision}</span>
                       {t.estado === 'Pendiente' ? 
                         <button onClick={() => marcarComoComprado(t.id, p.dpi, t.comision, t.anio)} style={{ background: '#28a745', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>Cobrar</button> : 
-                        <span style={{ color: '#28a745', fontWeight: 'bold' }}>✅ Pagado</span>
+                        <span style={{ color: '#28a745', fontWeight: 'bold' }}>✅ Validado</span>
                       }
                     </div>
                   ))}
