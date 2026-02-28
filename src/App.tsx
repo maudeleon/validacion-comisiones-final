@@ -8,8 +8,10 @@ export default function App() {
   const [session, setSession] = useState<any>(null);
   const [error, setError] = useState('');
 
-  // 👇 CAMBIA ESTO POR TU CORREO REAL DE ACCESO 👇
+  // 👇 CONFIGURA TUS ACCESOS AQUÍ 👇
   const correoAdmin = 'admin@comisiones.com'; 
+  const cajerosJesus = ['cajero1@ejemplo.com', 'mario@ejemplo.com']; 
+  const cajerosVirgen = ['cajero2@ejemplo.com', 'ana@ejemplo.com']; 
 
   const [vista, setVista] = useState('buscador');
   const [busqueda, setBusqueda] = useState('');
@@ -30,6 +32,12 @@ export default function App() {
 
   const handleLogout = async () => { await supabase.auth.signOut(); };
 
+  // 🧠 Lógica para saber qué permisos tiene el usuario conectado
+  const userEmail = session?.user?.email;
+  const isAdmin = userEmail === correoAdmin;
+  const veJesus = isAdmin || cajerosJesus.includes(userEmail);
+  const veVirgen = isAdmin || cajerosVirgen.includes(userEmail);
+
   const manejarBusqueda = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const valor = e.target.value;
     setBusqueda(valor);
@@ -37,29 +45,39 @@ export default function App() {
 
     const { data } = await supabase
       .from('personas')
-      .select('dpi, nombre, apellido1, apellido2, turnos(id, anio, comision, estado)')
+      // Ahora traemos también la columna 'imagen'
+      .select('dpi, nombre, apellido1, apellido2, turnos(id, anio, comision, estado, imagen)')
       .like('dpi', `${valor}%`);
 
     if (data) {
-      const dataOrdenada = data.map(persona => ({
-        ...persona,
-        turnos: persona.turnos.sort((a: any, b: any) => b.anio - a.anio)
-      }));
-      setResultados(dataOrdenada);
+      const dataFiltrada = data.map(persona => {
+        // Filtramos los turnos según los permisos del usuario que está cobrando
+        const turnosPermitidos = persona.turnos.filter((t: any) => {
+          if (t.imagen === 'Jesús' && !veJesus) return false;
+          if (t.imagen === 'Virgen' && !veVirgen) return false;
+          return true; // Si es 'General' o tiene permisos, lo deja ver
+        });
+
+        return {
+          ...persona,
+          turnos: turnosPermitidos.sort((a: any, b: any) => b.anio - a.anio)
+        };
+      });
+      setResultados(dataFiltrada);
     }
   };
 
   const marcarComoComprado = async (turnoId: string, dpi: string, comision: string, anio: number) => {
-    const { error } = await supabase.from('turnos').update({ estado: 'Comprado' }).eq('id', turnoId);
+    const { error } = await supabase.from('turnos').update({ estado: 'Validado' }).eq('id', turnoId);
     if (!error) {
       await supabase.from('bitacora').insert({
-        usuario: session.user.email,
+        usuario: userEmail,
         accion: 'Cobro de Turno',
         detalle: `DPI: ${dpi} - Comisión: ${comision} ${anio}`
       });
       setResultados(resultados.map(persona => {
         if (persona.dpi === dpi) {
-          return { ...persona, turnos: persona.turnos.map((t: any) => t.id === turnoId ? { ...t, estado: 'Comprado' } : t) };
+          return { ...persona, turnos: persona.turnos.map((t: any) => t.id === turnoId ? { ...t, estado: 'Validado' } : t) };
         }
         return persona;
       }));
@@ -81,16 +99,15 @@ export default function App() {
 
         const personasUnicas = new Map();
         const turnosNuevos = [];
-        const anioActual = new Date().getFullYear(); // 2027
+        const anioActual = new Date().getFullYear(); 
 
         for (const fila of filas as any[]) {
           if (!fila.DPI || !fila.Nombre || !fila.Anio) continue;
           
           const dpiStr = String(fila.DPI).trim();
           const anioTurno = Number(fila.Anio);
-          
-          // LÓGICA: Si el año es menor al actual (2026), ya está validado.
-          const estadoAsignado = anioTurno <= anioActual ? 'Comprado' : 'Pendiente';
+          const estadoAsignado = anioTurno <= anioActual ? 'Validado' : 'Pendiente';
+          const imagenAsignada = fila.Imagen ? String(fila.Imagen).trim() : 'General'; // Lee la columna Imagen
 
           personasUnicas.set(dpiStr, {
             dpi: dpiStr,
@@ -103,26 +120,27 @@ export default function App() {
             persona_dpi: dpiStr,
             anio: anioTurno,
             comision: fila.Comision ? String(fila.Comision).trim() : 'General',
-            estado: estadoAsignado
+            estado: estadoAsignado,
+            imagen: imagenAsignada
           });
         }
 
         await supabase.from('personas').upsert(Array.from(personasUnicas.values()), { onConflict: 'dpi', ignoreDuplicates: true });
-        await supabase.from('turnos').upsert(turnosNuevos, { onConflict: 'persona_dpi,anio,comision', ignoreDuplicates: true });
+        
+        // Actualizamos el candado en la subida para que coincida con la BD
+        await supabase.from('turnos').upsert(turnosNuevos, { onConflict: 'persona_dpi,anio,comision,imagen', ignoreDuplicates: true });
         
         await supabase.from('bitacora').insert({
-          usuario: session.user.email,
+          usuario: userEmail,
           accion: 'Carga Masiva',
           detalle: `Se procesaron ${turnosNuevos.length} registros.`
         });
 
-        setMensajeCarga('✅ Carga exitosa. Historial y ventas futuras actualizadas.');
-      } catch (err) { setMensajeCarga('❌ Error al procesar.'); }
+        setMensajeCarga('✅ Carga exitosa con separación por Imagen.');
+      } catch (err) { setMensajeCarga('❌ Error al procesar. Verifica que la columna "Anio" y "Imagen" existan.'); }
     };
     reader.readAsBinaryString(file);
   };
-
-  const isAdmin = session?.user?.email === correoAdmin;
 
   if (session) {
     return (
@@ -142,26 +160,36 @@ export default function App() {
             <input type="text" placeholder="Buscar por DPI..." value={busqueda} onChange={manejarBusqueda} style={{ width: '100%', padding: '12px', boxSizing: 'border-box', borderRadius: '5px', border: '1px solid #ddd' }} />
             <div style={{ marginTop: '20px' }}>
               {resultados.map(p => (
-                <div key={p.dpi} style={{ background: 'white', padding: '15px', border: '1px solid #eee', borderRadius: '10px', marginBottom: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                  <h3 style={{ margin: 0 }}>{p.nombre} {p.apellido1}</h3>
-                  <p style={{ fontSize: '0.9em', color: '#666' }}>DPI: {p.dpi}</p>
-                  {p.turnos.map((t: any) => (
-                    <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid #f0f0f0', alignItems: 'center' }}>
-                      <span><strong>{t.anio}</strong> - {t.comision}</span>
-                      {t.estado === 'Pendiente' ? 
-                        <button onClick={() => marcarComoComprado(t.id, p.dpi, t.comision, t.anio)} style={{ background: '#28a745', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>Cobrar</button> : 
-                        <span style={{ color: '#28a745', fontWeight: 'bold' }}>✅ Validado</span>
-                      }
-                    </div>
-                  ))}
-                </div>
+                p.turnos.length > 0 && (
+                  <div key={p.dpi} style={{ background: 'white', padding: '15px', border: '1px solid #eee', borderRadius: '10px', marginBottom: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <h3 style={{ margin: 0 }}>{p.nombre} {p.apellido1}</h3>
+                    <p style={{ fontSize: '0.9em', color: '#666' }}>DPI: {p.dpi}</p>
+                    {p.turnos.map((t: any) => (
+                      <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid #f0f0f0', alignItems: 'center' }}>
+                        <span>
+                          <strong>{t.anio}</strong> - {t.comision} 
+                          <span style={{ fontSize: '0.8em', marginLeft: '10px', padding: '2px 6px', background: t.imagen === 'Jesús' ? '#e3f2fd' : '#fce4ec', color: t.imagen === 'Jesús' ? '#1565c0' : '#c2185b', borderRadius: '4px' }}>
+                            {t.imagen}
+                          </span>
+                        </span>
+                        {t.estado === 'Pendiente' ? 
+                          <button onClick={() => marcarComoComprado(t.id, p.dpi, t.comision, t.anio)} style={{ background: '#28a745', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>Cobrar</button> : 
+                          <span style={{ color: '#28a745', fontWeight: 'bold' }}>✅ Validado</span>
+                        }
+                      </div>
+                    ))}
+                  </div>
+                )
               ))}
+              {resultados.length > 0 && resultados.every(p => p.turnos.length === 0) && (
+                <p style={{ textAlign: 'center', color: '#666' }}>No hay turnos disponibles para tu usuario.</p>
+              )}
             </div>
           </div>
         ) : (
           <div style={{ background: '#f9f9f9', padding: '20px', borderRadius: '10px', border: '1px solid #ddd' }}>
             <h3>Subir Archivo Excel</h3>
-            <p style={{ fontSize: '0.8em', color: '#666' }}>Años anteriores a 2027 se marcan como "Validado". 2027 en adelante como "Pendiente".</p>
+            <p style={{ fontSize: '0.8em', color: '#666' }}>Recuerda incluir la columna <strong>"Imagen"</strong> (valores: Jesús o Virgen).</p>
             <input type="file" onChange={procesarExcel} />
             <p>{mensajeCarga}</p>
           </div>
