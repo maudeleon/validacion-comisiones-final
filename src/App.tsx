@@ -81,7 +81,7 @@ export default function App() {
 
         const personasUnicas = new Map();
         const turnosNuevos = [];
-        const anioActual = new Date().getFullYear(); // 2026
+        const anioActual = new Date().getFullYear(); // 2027
 
         for (const fila of filas as any[]) {
           if (!fila.DPI || !fila.Nombre || !fila.Anio) continue;
@@ -89,7 +89,7 @@ export default function App() {
           const dpiStr = String(fila.DPI).trim();
           const anioTurno = Number(fila.Anio);
           
-          // LÓGICA: Si el año es menor al actual (2026), ya está pagado.
+          // LÓGICA: Si el año es menor al actual (2026), ya está validado.
           const estadoAsignado = anioTurno <= anioActual ? 'Comprado' : 'Pendiente';
 
           personasUnicas.set(dpiStr, {
@@ -150,7 +150,7 @@ export default function App() {
                       <span><strong>{t.anio}</strong> - {t.comision}</span>
                       {t.estado === 'Pendiente' ? 
                         <button onClick={() => marcarComoComprado(t.id, p.dpi, t.comision, t.anio)} style={{ background: '#28a745', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>Cobrar</button> : 
-                        <span style={{ color: '#28a745', fontWeight: 'bold' }}>✅ Pagado</span>
+                        <span style={{ color: '#28a745', fontWeight: 'bold' }}>✅ Validado</span>
                       }
                     </div>
                   ))}
@@ -161,7 +161,7 @@ export default function App() {
         ) : (
           <div style={{ background: '#f9f9f9', padding: '20px', borderRadius: '10px', border: '1px solid #ddd' }}>
             <h3>Subir Archivo Excel</h3>
-            <p style={{ fontSize: '0.8em', color: '#666' }}>Años anteriores a 2027 se marcan como "Pagado". 2027 en adelante como "Pendiente".</p>
+            <p style={{ fontSize: '0.8em', color: '#666' }}>Años anteriores a 2027 se marcan como "Validado". 2027 en adelante como "Pendiente".</p>
             <input type="file" onChange={procesarExcel} />
             <p>{mensajeCarga}</p>
           </div>
