@@ -81,7 +81,7 @@ export default function App() {
 
         const personasUnicas = new Map();
         const turnosNuevos = [];
-        const anioActual = new Date().getFullYear(); // 2026
+        const anioActual = new Date().getFullYear(); // 2027
 
         for (const fila of filas as any[]) {
           if (!fila.DPI || !fila.Nombre || !fila.Anio) continue;
