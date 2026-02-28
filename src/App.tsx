@@ -89,7 +89,7 @@ export default function App() {
           const dpiStr = String(fila.DPI).trim();
           const anioTurno = Number(fila.Anio);
           
-          // LÓGICA: Si el año es menor al actual (2026), ya está pagado.
+          // LÓGICA: Si el año es menor al actual (2026), ya está validado.
           const estadoAsignado = anioTurno <= anioActual ? 'Comprado' : 'Pendiente';
 
           personasUnicas.set(dpiStr, {
@@ -161,7 +161,7 @@ export default function App() {
         ) : (
           <div style={{ background: '#f9f9f9', padding: '20px', borderRadius: '10px', border: '1px solid #ddd' }}>
             <h3>Subir Archivo Excel</h3>
-            <p style={{ fontSize: '0.8em', color: '#666' }}>Años anteriores a 2027 se marcan como "Pagado". 2027 en adelante como "Pendiente".</p>
+            <p style={{ fontSize: '0.8em', color: '#666' }}>Años anteriores a 2027 se marcan como "Validado". 2027 en adelante como "Pendiente".</p>
             <input type="file" onChange={procesarExcel} />
             <p>{mensajeCarga}</p>
           </div>
