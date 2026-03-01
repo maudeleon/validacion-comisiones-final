@@ -10,7 +10,7 @@ export default function App() {
 
   // 👇 CONFIGURA TUS ACCESOS AQUÍ 👇
   const correoAdmin = 'admin@comisiones.com'; 
-  const cajerosJesus = ['lsaenz@comisiones.com', 'ngomez@comisiones.com', 'ccasia@comisiones.com']; 
+  const cajerosJesus = ['lsaenz@comisiones.com', 'ngomez@comisiones.com', 'ccasia@comisiones.com','kcaballeros@comisiones.com']; 
   const cajerosVirgen = ['cajero2@ejemplo.com', 'ana@ejemplo.com']; 
 
   const [vista, setVista] = useState('buscador');
